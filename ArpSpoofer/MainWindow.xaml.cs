@@ -1,4 +1,5 @@
 ﻿using ArpSpoofer.DTO;
+using ArpSpoofer.Services;
 using ArpSpoofer.Windows;
 using Microsoft.Win32;
 using PcapDotNet.Core;
@@ -24,16 +25,16 @@ namespace ArpSpoofer
     /// </summary>
     public partial class MainWindow : Window
     {
-        CapturePackets wndCapturePackets { get; set; }
+        CapturePackets _wndCapturePackets;
+        DeviceWithDescription _deviceWithDescription;
         public MainWindow()
         {
             InitializeComponent();
-            wndCapturePackets = new CapturePackets();
-            var device = GetWifiDevice();
-            tbDriver.Text = device.Driver;
-            tbName.Text = device.Name;
-            tbIp.Text = device.IpV4;
-            tbGuid.Text = device.Guid;
+            _deviceWithDescription = GetWifiDevice();
+            tbDriver.Text = _deviceWithDescription.Driver;
+            tbName.Text = _deviceWithDescription.Name;
+            tbIp.Text = _deviceWithDescription.IpV4;
+            tbGuid.Text = _deviceWithDescription.Guid;
         }
 
         private DeviceWithDescription GetWifiDevice()
@@ -86,11 +87,15 @@ namespace ArpSpoofer
 
         private void btnCapturePackets_Click(object sender, RoutedEventArgs e)
         {
-            if (wndCapturePackets.IsVisible)
+            if(_wndCapturePackets == null){
+                var capturingService = new CapturingService(_deviceWithDescription.Device);
+                _wndCapturePackets = new CapturePackets(capturingService);
+                _wndCapturePackets.Show();
+            }
+            if (_wndCapturePackets.IsVisible)
             {
                 return;
             }
-            wndCapturePackets.Show();
         }
     }
 }
