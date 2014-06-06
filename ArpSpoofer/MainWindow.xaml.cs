@@ -1,4 +1,8 @@
-﻿using System;
+﻿using ArpSpoofer.DTO;
+using ArpSpoofer.Windows;
+using Microsoft.Win32;
+using PcapDotNet.Core;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -20,9 +24,73 @@ namespace ArpSpoofer
     /// </summary>
     public partial class MainWindow : Window
     {
+        CapturePackets wndCapturePackets { get; set; }
         public MainWindow()
         {
             InitializeComponent();
+            wndCapturePackets = new CapturePackets();
+            var device = GetWifiDevice();
+            tbDriver.Text = device.Driver;
+            tbName.Text = device.Name;
+            tbIp.Text = device.IpV4;
+            tbGuid.Text = device.Guid;
+        }
+
+        private DeviceWithDescription GetWifiDevice()
+        {
+            var result = new DeviceWithDescription();
+
+            //first get GUID of wifi device from registry
+            const string rootKey = @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\NetworkCards";
+            var regKey = Registry.LocalMachine.OpenSubKey(rootKey);
+            var regDevices = regKey.GetSubKeyNames();
+            var wifiGuid = "";
+            foreach(var subkey in regDevices){
+                var deviceName = (string)regKey.OpenSubKey(subkey).GetValue("Description", "");
+                if (deviceName.ToLower().Contains("wifi") || deviceName.ToLower().Contains("wireless"))
+                {
+                    wifiGuid = (string)regKey.OpenSubKey(subkey).GetValue("ServiceName", "");
+                    result.Guid = wifiGuid;
+                    result.Name = deviceName;
+                    break;
+                }
+            }
+
+            if (string.IsNullOrEmpty(wifiGuid))
+            {
+                return null;
+            }
+
+            IList<LivePacketDevice> allDevices = LivePacketDevice.AllLocalMachine;
+            
+            if (allDevices.Count == 0)
+            {
+                MessageBox.Show("No interfaces found! Make sure WinPcap is installed.");
+                return null;
+            }
+
+            var wifiDevice = allDevices.FirstOrDefault(d => d.Name.Contains(wifiGuid));
+
+            if (wifiDevice == null)
+            {
+                return null;
+            }
+
+            string address = wifiDevice.Addresses.Single(x => x.Address.Family.ToString() == "Internet").Address.ToString();
+            var ipv4 = address.Substring(address.IndexOf("Internet ")+9);
+            result.IpV4 = ipv4;
+            result.Driver = wifiDevice.Description;
+            result.Device = wifiDevice;
+            return result;
+        }
+
+        private void btnCapturePackets_Click(object sender, RoutedEventArgs e)
+        {
+            if (wndCapturePackets.IsVisible)
+            {
+                return;
+            }
+            wndCapturePackets.Show();
         }
     }
 }
