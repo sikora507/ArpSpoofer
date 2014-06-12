@@ -65,8 +65,12 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="Services\ARPSpoofingService.cs" />
     <Compile Include="Services\CapturingService.cs" />
     <Compile Include="Services\PacketCapturedEventArgs.cs" />
+    <Compile Include="Windows\ArpSpoof.xaml.cs">
+      <DependentUpon>ArpSpoof.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Windows\CapturePackets.xaml.cs">
       <DependentUpon>CapturePackets.xaml</DependentUpon>
     </Compile>
@@ -83,6 +87,10 @@
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
+    <Page Include="Windows\ArpSpoof.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="Windows\CapturePackets.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>

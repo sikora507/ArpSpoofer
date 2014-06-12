@@ -1,0 +1,46 @@
+﻿<Window x:Class="ArpSpoofer.Windows.ArpSpoof"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="ArpSpoof" Height="370" Width="799">
+    <Grid Margin="0,0,2,0">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="24" />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="102*"/>
+            <ColumnDefinition Width="161*"/>
+        </Grid.ColumnDefinitions>
+        <DockPanel Grid.RowSpan="2">
+            <Label DockPanel.Dock="Top">Spoofer IPs</Label>
+            <Button x:Name="btnScan" Margin="5" DockPanel.Dock="Top" Click="btnScan_Click">SCAN</Button>
+            <ListView>
+                <ListView.View>
+                    <GridView>
+                        <GridViewColumn Width="150" Header="IP" />
+                        <GridViewColumn Width="150" Header="MAC" />
+                    </GridView>
+                </ListView.View>
+            </ListView>
+        </DockPanel>
+        <DockPanel Grid.Column="1" Grid.RowSpan="2">
+            <DockPanel DockPanel.Dock="Top">
+                <Label DockPanel.Dock="Left">Router IP:</Label>
+                <TextBox x:Name="tbGetawayIp" Margin="0" Padding="1,3,1,1" Text="getaway ip"/>
+            </DockPanel>
+            <DockPanel DockPanel.Dock="Top">
+                <Button x:Name="btnStartARP" DockPanel.Dock="Left" Margin="5" Click="btnStartARP_Click">START ARP spoofing!</Button>
+                <Button x:Name="btnStopArp" DockPanel.Dock="Right" Margin="5" Click="btnStopArp_Click">STOP ARP spoofing!</Button>
+            </DockPanel>
+            <Label DockPanel.Dock="Top">Log:</Label>
+            <TextBlock>
+
+            </TextBlock>
+        </DockPanel>
+        <StatusBar Grid.Row="1" Grid.ColumnSpan="2">
+            <StatusBarItem>
+                <TextBlock>Status:</TextBlock>
+            </StatusBarItem>
+        </StatusBar>
+    </Grid>
+</Window>

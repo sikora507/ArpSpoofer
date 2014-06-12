@@ -13,7 +13,7 @@ namespace ArpSpoofer.Services
         private LivePacketDevice _device;
         private PacketCommunicator _communicator;
 
-        public event EventHandler<PacketCapturedEventArgs> PacketCaptured;
+        public event EventHandler<Packet> PacketCaptured;
         public event EventHandler<string> StatusChanged;
 
         //private bool stopSignal;
@@ -26,7 +26,13 @@ namespace ArpSpoofer.Services
             //stopSignal = false;
             _communicator = _device.Open(65536, PacketDeviceOpenAttributes.Promiscuous, 1000);
             FireStatusChanged("Listening on " + _device.Description + "...");
-
+            
+            using (BerkeleyPacketFilter filter = _communicator.CreateFilter("tcp port 80 or 443"))
+            {
+                // Set the filter
+                _communicator.SetFilter(filter);
+            }
+            
             Packet packet;
             PacketCommunicatorReceiveResult receiveResult;
             do
@@ -62,21 +68,14 @@ namespace ArpSpoofer.Services
 
         private void PacketHandler(Packet packet)
         {
-            PacketCapturedEventArgs args = new PacketCapturedEventArgs
-            {
-                PacketLength = packet.Length,
-                TimestampString = packet.Timestamp.ToShortTimeString()
-            };
-            FirePacketCaptured(args);
-        }
-
-        private void FirePacketCaptured(PacketCapturedEventArgs args)
-        {
+            var ip = packet.Ethernet.IpV4;
+            var tcp = ip.Tcp;
             if (PacketCaptured != null)
             {
-                PacketCaptured(this, args);
+                PacketCaptured(this, packet);
             }
         }
+
         private void FireStatusChanged(string status)
         {
             if (StatusChanged != null)

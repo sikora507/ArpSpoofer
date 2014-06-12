@@ -16,6 +16,8 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition/>
@@ -23,13 +25,18 @@
             </Grid.ColumnDefinitions>
             <Label Grid.Column="0" Grid.Row="0">Name:</Label>
             <Label Grid.Column="0" Grid.Row="1">Driver:</Label>
-            <Label Grid.Column="0" Grid.Row="2">IP:</Label>
-            <Label Grid.Column="0" Grid.Row="3">Guid:</Label>
-            <TextBox x:Name="tbName"   Grid.Column="1" Grid.Row="0" Style="{StaticResource tbWifiInfo}">name  </TextBox>
-            <TextBox x:Name="tbDriver" Grid.Column="1" Grid.Row="1" Style="{StaticResource tbWifiInfo}">driver</TextBox>
-            <TextBox x:Name="tbIp"     Grid.Column="1" Grid.Row="2" Style="{StaticResource tbWifiInfo}">ip    </TextBox>
-            <TextBox x:Name="tbGuid"   Grid.Column="1" Grid.Row="3" Style="{StaticResource tbWifiInfo}">guid  </TextBox>
+            <Label Grid.Column="0" Grid.Row="2">Guid:</Label>
+            <Label Grid.Column="0" Grid.Row="3">IP:</Label>
+            <Label Grid.Column="0" Grid.Row="4">MAC:</Label>
+            <Label Grid.Column="0" Grid.Row="5">Gateway:</Label>
+            <TextBox x:Name="tbName"    Grid.Column="1" Grid.Row="0" Style="{StaticResource tbWifiInfo}">name  </TextBox>
+            <TextBox x:Name="tbDriver"  Grid.Column="1" Grid.Row="1" Style="{StaticResource tbWifiInfo}">driver</TextBox>
+            <TextBox x:Name="tbGuid"    Grid.Column="1" Grid.Row="2" Style="{StaticResource tbWifiInfo}">guid</TextBox>
+            <TextBox x:Name="tbIp"      Grid.Column="1" Grid.Row="3" Style="{StaticResource tbWifiInfo}">ip</TextBox>
+            <TextBox x:Name="tbMac"     Grid.Column="1" Grid.Row="4" Style="{StaticResource tbWifiInfo}">mac</TextBox>
+            <TextBox x:Name="tbGateway" Grid.Column="1" Grid.Row="5" Style="{StaticResource tbWifiInfo}">gateway</TextBox>
         </Grid>
         <Button x:Name="btnCapturePackets" Margin="5" Click="btnCapturePackets_Click">Capture Packets</Button>
+        <Button x:Name="btnArpSpoof" Margin="5" Click="btnArpSpoof_Click" >ARP Spoof</Button>
     </StackPanel>
 </Window>

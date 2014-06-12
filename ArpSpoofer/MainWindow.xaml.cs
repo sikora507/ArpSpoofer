@@ -6,6 +6,7 @@ using PcapDotNet.Core;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.NetworkInformation;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
@@ -26,6 +27,7 @@ namespace ArpSpoofer
     public partial class MainWindow : Window
     {
         CapturePackets _wndCapturePackets;
+        ArpSpoof _wndArpSpoof;
         DeviceWithDescription _deviceWithDescription;
         public MainWindow()
         {
@@ -35,6 +37,8 @@ namespace ArpSpoofer
             tbName.Text = _deviceWithDescription.Name;
             tbIp.Text = _deviceWithDescription.IpV4;
             tbGuid.Text = _deviceWithDescription.Guid;
+            tbMac.Text = _deviceWithDescription.MacString;
+            tbGateway.Text = _deviceWithDescription.GatewayString;
         }
 
         private DeviceWithDescription GetWifiDevice()
@@ -71,7 +75,7 @@ namespace ArpSpoofer
             }
 
             var wifiDevice = allDevices.FirstOrDefault(d => d.Name.Contains(wifiGuid));
-
+            var addresses = wifiDevice.Addresses;
             if (wifiDevice == null)
             {
                 return null;
@@ -79,6 +83,12 @@ namespace ArpSpoofer
 
             string address = wifiDevice.Addresses.Single(x => x.Address.Family.ToString() == "Internet").Address.ToString();
             var ipv4 = address.Substring(address.IndexOf("Internet ")+9);
+
+            var nic = NetworkInterface.GetAllNetworkInterfaces().Single(x => x.Id.Contains(result.Guid));
+            var gatewayBytes = nic.GetIPProperties().GatewayAddresses.First().Address.GetAddressBytes();
+            var mac = nic.GetPhysicalAddress();
+            result.MacByte = mac.GetAddressBytes();
+            result.GatewayByte = gatewayBytes;
             result.IpV4 = ipv4;
             result.Driver = wifiDevice.Description;
             result.Device = wifiDevice;
@@ -90,12 +100,47 @@ namespace ArpSpoofer
             if(_wndCapturePackets == null){
                 var capturingService = new CapturingService(_deviceWithDescription.Device);
                 _wndCapturePackets = new CapturePackets(capturingService);
+                _wndCapturePackets.Closing += wnd_Closing;
                 _wndCapturePackets.Show();
             }
-            if (_wndCapturePackets.IsVisible)
+            else
             {
-                return;
+                if (_wndCapturePackets.IsVisible)
+                {
+                    return;
+                }
+                else
+                {
+                    _wndCapturePackets.Show();
+                }
             }
+        }
+
+        private void btnArpSpoof_Click(object sender, RoutedEventArgs e)
+        {
+            if (_wndArpSpoof == null)
+            {
+                var arpSpoofingService = new ARPSpoofingService(_deviceWithDescription);
+                _wndArpSpoof = new ArpSpoof(arpSpoofingService);
+                _wndArpSpoof.Closing += wnd_Closing;
+                _wndArpSpoof.Show();
+            }
+            else { 
+                if (_wndArpSpoof.IsVisible)
+                {
+                    return;
+                }
+                else
+                {
+                    _wndArpSpoof.Show();
+                }
+            }
+        }
+
+        void wnd_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            e.Cancel = true;
+            ((Window)sender).Visibility = Visibility.Hidden;
         }
     }
 }
