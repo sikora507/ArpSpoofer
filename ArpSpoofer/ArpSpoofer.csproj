@@ -65,6 +65,7 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="DTO\IpMacPair.cs" />
     <Compile Include="Services\ARPSpoofingService.cs" />
     <Compile Include="Services\CapturingService.cs" />
     <Compile Include="Services\PacketCapturedEventArgs.cs" />

@@ -1,6 +1,7 @@
 ﻿using ArpSpoofer.DTO;
 using PcapDotNet.Core;
 using PcapDotNet.Packets;
+using PcapDotNet.Packets.Arp;
 using PcapDotNet.Packets.Ethernet;
 using PcapDotNet.Packets.Icmp;
 using PcapDotNet.Packets.IpV4;
@@ -17,13 +18,16 @@ namespace ArpSpoofer.Services
     {
         public DeviceWithDescription Device;
         CancellationTokenSource cancelTokenSource;
-        List<Packet> _receivedPackets = new List<Packet>();
+        Dictionary<string, string> _ipMacPairs;
+        public event EventHandler<double> ScanTick;
+        public event EventHandler<IpMacPair> NewIpMacFound;
         public bool IsScanning { get; set; }
         public ARPSpoofingService(DeviceWithDescription device)
         {
             Device = device;
             cancelTokenSource = new CancellationTokenSource();
             IsScanning = false;
+            _ipMacPairs = new Dictionary<string, string>();
         }
 
         internal void StartPoisoning(string getawayIp)
@@ -43,7 +47,7 @@ namespace ArpSpoofer.Services
                 IsScanning = true;
                 cancelTokenSource = new CancellationTokenSource();
                 ListenForReplys();
-                PingAddresses();
+                ArpAddresses();
             }
         }
 
@@ -55,8 +59,9 @@ namespace ArpSpoofer.Services
             }
         }
 
-        private void PingAddresses()
+        private async void ArpAddresses()
         {
+            _ipMacPairs.Clear();
             var communicator = Device.Device.Open(100, PacketDeviceOpenAttributes.Promiscuous, 1000);
 
             MacAddress source = new MacAddress(Device.MacString.Replace('-', ':'));
@@ -64,43 +69,68 @@ namespace ArpSpoofer.Services
             EthernetLayer ethernetLayer = new EthernetLayer
             {
                 Source = source,
-                Destination = destination
-            };
-            var ipVals = Device.IpV4.Split('.').Select(x => Int32.Parse(x)).ToArray();
-            IpV4Layer ipv4Layer = new IpV4Layer
-            {
-                Source = new IpV4Address(Device.IpV4),
-                Ttl = 128
+                Destination = destination,
+                EtherType = EthernetType.None
             };
 
-            IcmpEchoLayer icmpLayer = new IcmpEchoLayer();
+            var ipVals = Device.IpV4.Split('.').Select(x => byte.Parse(x)).ToArray();
 
-            PacketBuilder builder = new PacketBuilder(ethernetLayer, ipv4Layer, icmpLayer);
-
-            for (var i = 0; i < 256; ++i)
+            ArpLayer arpLayer = new ArpLayer
             {
-                if (i == ipVals[3]) continue;
-                // Set IPv4 parameters
-                ipv4Layer.CurrentDestination = new IpV4Address("192.168.1." + i);
-                ipv4Layer.Identification = (ushort)i;
+                ProtocolType = EthernetType.IpV4,
+                Operation = ArpOperation.Request,
+                SenderHardwareAddress = Array.AsReadOnly(Device.MacByte),
+                SenderProtocolAddress = Array.AsReadOnly(ipVals),
+                TargetHardwareAddress = Array.AsReadOnly(new byte[] { 0, 0, 0, 0, 0, 0 }),
+                //TargetProtocolAddress = new byte[] { 192, 168, 1, 1 }, // 11.22.33.44.
+            };
 
-                // Set ICMP parameters
-                icmpLayer.SequenceNumber = (ushort)i;
-                icmpLayer.Identifier = (ushort)i;
+            //IpV4Layer ipv4Layer = new IpV4Layer
+            //{
+            //    Source = new IpV4Address(Device.IpV4),
+            //    Ttl = 128
+            //};
 
-                // Build the packet
-                Packet packet = builder.Build(DateTime.Now);
+            //IcmpEchoLayer icmpLayer = new IcmpEchoLayer();
 
-                // Send down the packet
-                communicator.SendPacket(packet);
-            }
+            //PacketBuilder builder = new PacketBuilder(ethernetLayer, ipv4Layer, icmpLayer);
+            PacketBuilder builder = new PacketBuilder(ethernetLayer, arpLayer);
+            await Task.Factory.StartNew(() =>
+            {
+                for (var i = 1; ; ++i)
+                {
+                    if (i >= 256)
+                    {
+                        i = 1;
+                    }
+                    if (i == ipVals[3]) continue;
+                    // Set IPv4 parameters
+                    arpLayer.TargetProtocolAddress = Array.AsReadOnly(new byte[] { 192, 168, 1, (byte)i });
+                    //ipv4Layer.Identification = (ushort)i;
+
+                    //// Set ICMP parameters
+                    //icmpLayer.SequenceNumber = (ushort)i;
+                    //icmpLayer.Identifier = (ushort)i;
+
+                    // Build the packet
+                    Packet packet = builder.Build(DateTime.Now);
+                    Thread.Sleep(200);
+                    // Send down the packet
+                    communicator.SendPacket(packet);
+                    if (ScanTick != null)
+                    {
+                        ScanTick(this, (double)i / 255.0);
+                    }
+                }
+            });
+            communicator.Dispose();
         }
 
         private void ListenForReplys()
         {
             var communicator = Device.Device.Open(200, PacketDeviceOpenAttributes.Promiscuous, 1000);
 
-            using (BerkeleyPacketFilter filter = communicator.CreateFilter("icmp"))
+            using (BerkeleyPacketFilter filter = communicator.CreateFilter("arp"))
             {
                 // Set the filter
                 communicator.SetFilter(filter);
@@ -122,9 +152,18 @@ namespace ArpSpoofer.Services
                                     // Timeout elapsed
                                     break;
                                 case PacketCommunicatorReceiveResult.Ok:
-                                    if (packet.Ethernet.IpV4.Icmp.MessageType == IcmpMessageType.EchoReply)
+                                    if (packet.Ethernet.Arp.Operation == ArpOperation.Reply)
                                     {
-                                        _receivedPackets.Add(packet);
+                                        //_receivedPackets.Add(packet);
+                                        string mac = BitConverter.ToString(packet.Ethernet.Arp.SenderHardwareAddress.ToArray());
+                                        string ip = packet.Ethernet.Arp.SenderProtocolIpV4Address.ToString();
+                                        if(!_ipMacPairs.ContainsKey(mac)){
+                                            _ipMacPairs.Add(mac, ip);
+                                            if (NewIpMacFound != null)
+                                            {
+                                                NewIpMacFound(this, new IpMacPair { Ip = ip, Mac = mac });
+                                            }
+                                        }
                                     }
                                     break;
                                 case PacketCommunicatorReceiveResult.Eof:
