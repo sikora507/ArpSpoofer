@@ -55,7 +55,7 @@ namespace ArpSpoofer.Windows
 
         private void btnStartARP_Click(object sender, RoutedEventArgs e)
         {
-            _spoofingService.StartPoisoning(tbGetawayIp.Text);
+            _spoofingService.StartPoisoning();
         }
 
         private void btnStopArp_Click(object sender, RoutedEventArgs e)
