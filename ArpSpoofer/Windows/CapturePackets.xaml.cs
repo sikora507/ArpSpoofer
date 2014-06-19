@@ -1,33 +1,24 @@
-﻿using ArpSpoofer.Services;
+﻿using ArpSpoofer.ServiceContracts;
+using ArpSpoofer.Services;
+using ArpSpoofer.WindowContracts;
 using PcapDotNet.Packets;
-using PcapDotNet.Packets.Http;
-using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Shapes;
 
 namespace ArpSpoofer.Windows
 {
     /// <summary>
     /// Interaction logic for CapturePackets.xaml
     /// </summary>
-    public partial class CapturePackets : Window
+    public partial class CapturePackets : Window, ICapturePackets
     {
-        CapturingService _capturingService;
+        ICapturingService _capturingService;
         uint _packetsCount;
         const int maxLines = 1000;
         uint _nextSequenceNumber = 0;
-        public CapturePackets(CapturingService capturingService)
+        public CapturePackets(ICapturingService capturingService)
         {
             InitializeComponent();
             _capturingService = capturingService;

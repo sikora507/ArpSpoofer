@@ -1,38 +1,26 @@
 ﻿using ArpSpoofer.DTO;
-using ArpSpoofer.Services;
-using System;
-using System.Collections.Generic;
+using ArpSpoofer.ServiceContracts;
+using ArpSpoofer.WindowContracts;
 using System.Collections.ObjectModel;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Shapes;
 
 namespace ArpSpoofer.Windows
 {
-    /// <summary>
-    /// Interaction logic for ArpSpoof.xaml
-    /// </summary>
-    public partial class ArpSpoof : Window
+    public partial class ArpSpoof : Window, IArpSpoof
     {
-        ARPSpoofingService _spoofingService;
+        IARPSpoofingService _spoofingService;
+        IWifiDeviceService _deviceService;
         ObservableCollection<IpMacPair> _ipMacPairs = new ObservableCollection<IpMacPair>();
         public ObservableCollection<IpMacPair> IpMacPairs
         {
             get { return _ipMacPairs; }
         }
-        public ArpSpoof(ARPSpoofingService spoofingService)
+        public ArpSpoof(IARPSpoofingService spoofingService, IWifiDeviceService deviceService)
         {
             InitializeComponent();
+            _deviceService = deviceService;
             _spoofingService = spoofingService;
-            tbGetawayIp.Text = _spoofingService.Device.GatewayString;
+            tbGetawayIp.Text = _deviceService.DeviceWithDescription.GatewayIpString;
             _spoofingService.ScanTick += _spoofingService_ScanTick;
             _spoofingService.NewIpMacFound += _spoofingService_NewIpMacFound;
         }

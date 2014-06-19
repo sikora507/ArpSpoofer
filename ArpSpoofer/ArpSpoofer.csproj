@@ -34,6 +34,9 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Ninject">
+      <HintPath>..\packages\Ninject.3.2.2.0\lib\net45-full\Ninject.dll</HintPath>
+    </Reference>
     <Reference Include="PcapDotNet.Base">
       <HintPath>..\3dparty\PcapDotNet.Binaries.0.10.0.67076.x64\PcapDotNet.Base.dll</HintPath>
     </Reference>
@@ -66,9 +69,20 @@
       <SubType>Designer</SubType>
     </ApplicationDefinition>
     <Compile Include="DTO\IpMacPair.cs" />
+    <Compile Include="ServiceContracts\IARPSpoofingService.cs" />
+    <Compile Include="ServiceContracts\ICapturingService.cs" />
+    <Compile Include="WindowContracts\IArpSpoof.cs" />
+    <Compile Include="WindowContracts\ICapturePackets.cs" />
+    <Compile Include="WindowContracts\IMainWindow.cs" />
+    <Compile Include="ServiceContracts\IWifiDeviceService.cs" />
+    <Compile Include="ServiceContracts\IRegistryService.cs" />
+    <Compile Include="Services\RegistryService.cs" />
+    <Compile Include="Enum\WifiRegistryInformation.cs" />
+    <Compile Include="Enum\WinRoutingStatus.cs" />
     <Compile Include="Services\ARPSpoofingService.cs" />
     <Compile Include="Services\CapturingService.cs" />
     <Compile Include="Services\PacketCapturedEventArgs.cs" />
+    <Compile Include="Services\WifiDeviceService.cs" />
     <Compile Include="Windows\ArpSpoof.xaml.cs">
       <DependentUpon>ArpSpoof.xaml</DependentUpon>
     </Compile>
@@ -115,6 +129,7 @@
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
+    <None Include="packages.config" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
